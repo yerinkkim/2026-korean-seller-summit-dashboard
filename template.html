@@ -46,13 +46,14 @@
     <!-- 최근 신청자 -->
     <section class="card mb-6">
       <div class="flex items-center justify-between mb-3">
-        <h2 class="text-lg font-semibold">최근 신청자 <span id="recent-count" class="text-sm font-normal text-slate-500">(0명)</span></h2>
+        <h2 class="text-lg font-semibold">전체 신청자 <span id="recent-count" class="text-sm font-normal text-slate-500">(0명)</span></h2>
         <button onclick="downloadExcel()" class="px-3 py-1.5 bg-emerald-600 text-white text-sm rounded hover:bg-emerald-700 transition">엑셀 다운로드</button>
       </div>
       <div class="overflow-x-auto">
         <table class="w-full text-sm">
           <thead class="bg-slate-100 text-slate-600 uppercase text-xs">
             <tr>
+              <th class="px-3 py-2 text-left">번호</th>
               <th class="px-3 py-2 text-left">시간</th>
               <th class="px-3 py-2 text-left">성함</th>
               <th class="px-3 py-2 text-left">기업명</th>
@@ -288,10 +289,11 @@
       const recentBody = document.getElementById('recent-body');
       document.getElementById('recent-count').textContent = `(${rows.length}명)`;
       if (rows.length === 0) {
-        recentBody.innerHTML = '<tr><td colspan="6" class="px-3 py-4 text-center text-slate-400">아직 신청 내역이 없습니다.</td></tr>';
+        recentBody.innerHTML = '<tr><td colspan="7" class="px-3 py-4 text-center text-slate-400">아직 신청 내역이 없습니다.</td></tr>';
       } else {
-        recentBody.innerHTML = rows.slice().reverse().slice(0, 20).map(r => `
+        recentBody.innerHTML = rows.slice().reverse().map((r, i) => `
           <tr class="border-b">
+            <td class="px-3 py-2 text-center">${rows.length - i}</td>
             <td class="px-3 py-2">${r.time || '-'}</td>
             <td class="px-3 py-2">${r.name || '-'}</td>
             <td class="px-3 py-2">${r.company || '-'}</td>
