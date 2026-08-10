@@ -1,0 +1,15 @@
+{
+  "name": "2026-korean-seller-summit-dashboard",
+  "version": "1.0.0",
+  "description": "2026 Korean Seller Summit 모객 현황 대시보드 (GitHub Pages)",
+  "private": true,
+  "scripts": {
+    "build": "node update-dashboard.js"
+  },
+  "dependencies": {
+    "xlsx": "^0.18.5"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
