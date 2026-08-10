@@ -307,7 +307,7 @@
       // Google Forms 응답 시트의 CSV는 섹션 제목/설명 때문에 헤더가 여러 줄에 걸쳐 있음
       // PapaParse가 큰따옴표 안의 개행을 자동으로 처리하도록 한 번 파싱한 뒤
       // 하나의 헤더 행으로 재조합한다.
-      const parsed = Papa.parse(csvText, { header: false, quoteChar: '"', escapeChar: '"', skipEmptyLines: true });
+      const parsed = Papa.parse(csvText, { header: false, quoteChar: '"', escapeChar: '"', skipEmptyLines: true, newline: "" });
       if (!parsed.data || parsed.data.length < 2) return csvText;
       const fields = parsed.data[0];
       const data = parsed.data.slice(1);
