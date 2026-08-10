@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2026 Korean Seller Summit 모객 현황 대시보드</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+  <style>
+    .progress-bg { background-color: #e5e7eb; border-radius: 9999px; overflow: hidden; height: 1rem; }
+    .progress-fill { height: 100%; border-radius: 9999px; transition: width 0.5s ease; }
+    .card { background: white; border-radius: 0.75rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); padding: 1.25rem; }
+    .team-row:nth-child(even) { background-color: #f9fafb; }
+  </style>
+  <!-- 관리자가 업로드한 CSV 데이터를 여기에 내장하면 공용 HTML 파일 하나로 배포할 수 있습니다. -->
+  <script type="text/csv" id="embedded-csv" data-mode="placeholder"></script>
+</head>
+<body class="bg-slate-50 text-slate-800">
+  <div class="max-w-6xl mx-auto p-4 md:p-6">
+    <header class="mb-6">
+      <h1 class="text-2xl md:text-3xl font-bold text-slate-900">2026 Korean Seller Summit 모객 현황 대시보드</h1>
+      <p class="text-slate-500 mt-1">행사일: 2026년 8월 25일(화) 14:00–17:30 | 장소: 노보텔 앰배서더 서울 동대문</p>
+    </header>
+
+    <!-- 상단 KPI -->
+    <section class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div class="card text-center">
+        <div class="text-sm text-slate-500">총 신청자</div>
+        <div id="kpi-total" class="text-3xl font-bold text-indigo-600">0</div>
+      </div>
+      <div class="card text-center">
+        <div class="text-sm text-slate-500">총 모객 목표</div>
+        <div id="kpi-target" class="text-3xl font-bold text-slate-700">400</div>
+      </div>
+      <div class="card text-center">
+        <div class="text-sm text-slate-500">전체 달성률</div>
+        <div id="kpi-rate" class="text-3xl font-bold text-emerald-600">0%</div>
+      </div>
+      <div class="card text-center">
+        <div class="text-sm text-slate-500">마지막 갱신</div>
+        <div id="kpi-updated" class="text-lg font-semibold text-slate-700">-</div>
+      </div>
+    </section>
+
+    <!-- 최근 신청자 -->
+    <section class="card mb-6">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-lg font-semibold">최근 신청자 <span id="recent-count" class="text-sm font-normal text-slate-500">(0명)</span></h2>
+        <button onclick="downloadExcel()" class="px-3 py-1.5 bg-emerald-600 text-white text-sm rounded hover:bg-emerald-700 transition">엑셀 다운로드</button>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="bg-slate-100 text-slate-600 uppercase text-xs">
+            <tr>
+              <th class="px-3 py-2 text-left">시간</th>
+              <th class="px-3 py-2 text-left">성함</th>
+              <th class="px-3 py-2 text-left">기업명</th>
+              <th class="px-3 py-2 text-left">입점 여부</th>
+              <th class="px-3 py-2 text-left">소속 팀</th>
+              <th class="px-3 py-2 text-left">신청 경로</th>
+            </tr>
+          </thead>
+          <tbody id="recent-body">
+            <tr><td colspan="6" class="px-3 py-4 text-center text-slate-400">아직 신청 내역이 없습니다.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 팀별 모객 현황 -->
+    <section class="card mb-6">
+      <h2 class="text-lg font-semibold mb-4">팀별 모객 현황</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="bg-slate-100 text-slate-600 uppercase text-xs">
+            <tr>
+              <th class="px-3 py-2 text-left">팀</th>
+              <th class="px-3 py-2 text-right">인서비스 업체<br>목표</th>
+              <th class="px-3 py-2 text-right">신규 업체<br>목표</th>
+              <th class="px-3 py-2 text-right">Total<br>목표</th>
+              <th class="px-3 py-2 text-right">현재<br>신청</th>
+              <th class="px-3 py-2 text-right">인서비스 업체</th>
+              <th class="px-3 py-2 text-right">신규 업체</th>
+              <th class="px-3 py-2 text-left">달성률</th>
+              <th class="px-3 py-2 text-right">남은<br>인원</th>
+            </tr>
+          </thead>
+          <tbody id="team-body">
+            <!-- JS가 채움 -->
+          </tbody>
+          <tfoot class="bg-slate-100 font-semibold text-slate-800">
+            <tr id="team-foot">
+              <!-- JS가 채움 -->
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </section>
+
+    <!-- 개별 담당자 신청 링크 -->
+    <!-- INDIVIDUAL_LINKS_PLACEHOLDER -->
+  </div>
+
+  <script>
+    // 목표 데이터 (260825 Summit 邀约目标.xlsx 기준)
+    const teams = [
+      { id: 'seoul2', name: 'Seoul Team 2', serviceTarget: 24, prospectTarget: 70, totalTarget: 94, serviceBase: 186 },
+      { id: 'seoul3', name: 'Seoul Team 3', serviceTarget: 18, prospectTarget: 70, totalTarget: 88, serviceBase: 123 },
+      { id: 'seoul4', name: 'Seoul Team 4', serviceTarget: 20, prospectTarget: 70, totalTarget: 90, serviceBase: 149 },
+      { id: 'busan1', name: 'Busan Team 1', serviceTarget: 6, prospectTarget: 35, totalTarget: 41, serviceBase: 53 },
+      { id: 'channel', name: 'Channel', serviceTarget: 32, prospectTarget: 55, totalTarget: 87, serviceBase: 178 },
+      { id: 'operations', name: '운영팀', serviceTarget: 0, prospectTarget: 0, totalTarget: 0, serviceBase: 0 },
+      { id: 'marketing', name: '마케팅', serviceTarget: 0, prospectTarget: 0, totalTarget: 0, serviceBase: 0 }
+    ];
+
+    // 기본 팀 매핑 (신청 경로 값을 팀 ID로 연결)
+    // 0825商家大会邀约链接.xlsx 의 AM/채널별 링크 값을 기준으로 매핑
+    let teamMapping = {
+      seoul2: ['Seoul Team 2', 'seoul2', 'Seoul2', '서울2팀', 'ST2', '허서우', '김진언', '고서영', '박영운', '용화중', '박재한', '정준섭', '강인수', '이재무'],
+      seoul3: ['Seoul Team 3', 'seoul3', 'Seoul3', '서울3팀', 'ST3', '서장범', '변성근', '홍기일', '유태광', '유지민', '이현규', '이정빈', '최수민', '강하림'],
+      seoul4: ['Seoul Team 4', 'seoul4', 'Seoul4', '서울4팀', 'ST4', '정지수', '서동현', '최기윤', '조관훈', '정수연', '김승건', '이도엽'],
+      busan1: ['Busan Team 1', 'busan1', 'Busan1', '부산1팀', 'BT1', '부산', '고호동', '김민도', '손순영', '이창제', '정태식', '한민주'],
+      channel: ['Channel', 'channel', '채널', 'CH', '채널팀', 'KYP', 'GABIA', 'EINS MEDIA', 'PROGRESS-MEDIA', '채널_Korea Yellow Pages Ltd', '채널_GABIA CNS', '채널_EINS MEDIA', '채널_PROGRESS-MEDIA'],
+      operations: ['운영팀', '운영'],
+      marketing: ['Marketing', '마케팅', '메일', '이메일']
+    };
+
+    // 현재 집계 상태
+    let currentRows = [];
+    let currentCsvText = '';
+
+    function decodeEmbeddedCsv(text) {
+      if (!text) return '';
+      try {
+        return decodeURIComponent(escape(atob(text.trim())));
+      } catch (e) {
+        return text;
+      }
+    }
+
+    function loadEmbeddedOrLocalCsv() {
+      const embedded = document.getElementById('embedded-csv');
+      if (embedded && embedded.textContent.trim() && embedded.dataset.mode !== 'placeholder') {
+        currentCsvText = decodeEmbeddedCsv(embedded.textContent);
+        updateDashboard(parseCsv(currentCsvText));
+        return;
+      }
+      fetch('responses.csv')
+        .then(r => r.ok ? r.text() : Promise.reject('no file'))
+        .then(text => {
+          currentCsvText = text;
+          updateDashboard(parseCsv(text));
+        })
+        .catch(() => {
+          updateDashboard([]);
+        });
+    }
+
+    function downloadExcel() {
+      if (!currentRows || currentRows.length === 0) {
+        alert('다운로드할 신청 내역이 없습니다.');
+        return;
+      }
+      if (typeof XLSX === 'undefined') {
+        alert('엑셀 라이브러리를 불러오는 중입니다. 잠시 후 다시 시도해주세요.');
+        return;
+      }
+      const data = currentRows.map(r => ({
+        '제출 시간': r.time || '',
+        '성함': r.name || '',
+        '기업명': r.company || '',
+        '입점 여부': r.status || '',
+        '신청 경로': r.path || '',
+        '소속 팀': r.teamName || '미분류'
+      }));
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, '신청자 목록');
+      const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+      XLSX.writeFile(wb, `summit-applicants-${dateStr}.xlsx`);
+    }
+
+    // CSV 컬럼명 추정
+    const PATH_KEYWORDS = ['신청 경로', 'source', '경로', 'utm_source', 'team'];
+    const NAME_KEYWORDS = ['참가자 성함', '성함', 'Name', '이름'];
+    const COMPANY_KEYWORDS = ['기업명', 'Company Name', '회사'];
+    const STATUS_KEYWORDS = ['입점 여부', '입점', 'status'];
+    const TIME_KEYWORDS = ['타임스탬프', 'Timestamp', '제출 시간', '시간'];
+
+    function findColumn(headers, keywords) {
+      for (const kw of keywords) {
+        const idx = headers.findIndex(h => String(h).toLowerCase().includes(kw.toLowerCase()));
+        if (idx >= 0) return idx;
+      }
+      return -1;
+    }
+
+    function classifyTeam(pathValue) {
+      const val = String(pathValue || '').trim().toLowerCase();
+      for (const [teamId, aliases] of Object.entries(teamMapping)) {
+        for (const alias of aliases) {
+          if (val.includes(String(alias).toLowerCase())) return teamId;
+        }
+      }
+      return null;
+    }
+
+    function classifyStatus(statusValue) {
+      const val = String(statusValue || '').trim();
+      if (val.includes('현재 입점해 있음')) return 'service';
+      if (val.includes('입점한 적 없음') || val.includes('과거에 했으나 현재 하고 있지 않음')) return 'prospect';
+      // 폴리필: 짧은 값이 들어올 경우를 대비
+      if (val.includes('입점해 있음') || val.includes('현재')) return 'service';
+      return 'prospect';
+    }
+
+    function updateDashboard(rows) {
+      currentRows = rows;
+      const stats = {};
+      teams.forEach(t => stats[t.id] = { service: 0, prospect: 0, total: 0 });
+
+      rows.forEach(r => {
+        const teamId = classifyTeam(r.path);
+        if (!teamId) return;
+        const type = classifyStatus(r.status);
+        stats[teamId][type]++;
+        stats[teamId].total++;
+      });
+
+      // 팀별 테이블
+      const tbody = document.getElementById('team-body');
+      tbody.innerHTML = '';
+      teams.forEach(t => {
+        const s = stats[t.id];
+        const rate = t.totalTarget ? Math.min(100, Math.round((s.total / t.totalTarget) * 100)) : 0;
+        const color = rate >= 80 ? 'bg-emerald-500' : rate >= 50 ? 'bg-amber-500' : 'bg-rose-500';
+        const remaining = Math.max(0, t.totalTarget - s.total);
+        tbody.innerHTML += `
+          <tr class="team-row border-b">
+            <td class="px-3 py-3 font-medium">${t.name}</td>
+            <td class="px-3 py-3 text-right">${t.serviceTarget}</td>
+            <td class="px-3 py-3 text-right">${t.prospectTarget}</td>
+            <td class="px-3 py-3 text-right font-semibold">${t.totalTarget}</td>
+            <td class="px-3 py-3 text-right font-bold text-indigo-600">${s.total}</td>
+            <td class="px-3 py-3 text-right">${s.service}</td>
+            <td class="px-3 py-3 text-right">${s.prospect}</td>
+            <td class="px-3 py-3">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold w-8">${rate}%</span>
+                <div class="progress-bg flex-1" style="min-width:80px;">
+                  <div class="progress-fill ${color}" style="width:${rate}%"></div>
+                </div>
+              </div>
+            </td>
+            <td class="px-3 py-3 text-right">${remaining}</td>
+          </tr>
+        `;
+      });
+
+      // 합계
+      const totalTarget = teams.reduce((a, t) => a + t.totalTarget, 0);
+      const totalServiceTarget = teams.reduce((a, t) => a + t.serviceTarget, 0);
+      const totalProspectTarget = teams.reduce((a, t) => a + t.prospectTarget, 0);
+      const totalService = teams.reduce((a, t) => a + stats[t.id].service, 0);
+      const totalProspect = teams.reduce((a, t) => a + stats[t.id].prospect, 0);
+      const totalAll = teams.reduce((a, t) => a + stats[t.id].total, 0);
+      const totalRate = totalTarget ? Math.round((totalAll / totalTarget) * 100) : 0;
+      document.getElementById('team-foot').innerHTML = `
+        <td class="px-3 py-3">TOTAL</td>
+        <td class="px-3 py-3 text-right">${totalServiceTarget}</td>
+        <td class="px-3 py-3 text-right">${totalProspectTarget}</td>
+        <td class="px-3 py-3 text-right">${totalTarget}</td>
+        <td class="px-3 py-3 text-right">${totalAll}</td>
+        <td class="px-3 py-3 text-right">${totalService}</td>
+        <td class="px-3 py-3 text-right">${totalProspect}</td>
+        <td class="px-3 py-3">${totalRate}%</td>
+        <td class="px-3 py-3 text-right">${Math.max(0, totalTarget - totalAll)}</td>
+      `;
+
+      // KPI
+      document.getElementById('kpi-total').textContent = totalAll;
+      document.getElementById('kpi-target').textContent = totalTarget;
+      document.getElementById('kpi-rate').textContent = totalRate + '%';
+      document.getElementById('kpi-updated').textContent = new Date().toLocaleString('ko-KR');
+
+      // 최근 신청자
+      const recentBody = document.getElementById('recent-body');
+      document.getElementById('recent-count').textContent = `(${rows.length}명)`;
+      if (rows.length === 0) {
+        recentBody.innerHTML = '<tr><td colspan="6" class="px-3 py-4 text-center text-slate-400">아직 신청 내역이 없습니다.</td></tr>';
+      } else {
+        recentBody.innerHTML = rows.slice().reverse().slice(0, 20).map(r => `
+          <tr class="border-b">
+            <td class="px-3 py-2">${r.time || '-'}</td>
+            <td class="px-3 py-2">${r.name || '-'}</td>
+            <td class="px-3 py-2">${r.company || '-'}</td>
+            <td class="px-3 py-2">${r.status || '-'}</td>
+            <td class="px-3 py-2"><span class="px-2 py-0.5 rounded-full text-xs ${r.team ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-500'}">${r.teamName || '미분류'}</span></td>
+            <td class="px-3 py-2">${r.path || '-'}</td>
+          </tr>
+        `).join('');
+      }
+    }
+
+    function preprocessCsv(csvText) {
+      // Google Forms 응답 시트의 CSV는 섹션 제목/설명 때문에 헤더가 여러 줄에 걸쳐 있음
+      const lines = csvText.split('\n');
+      let headerEnd = -1;
+      for (let i = 0; i < Math.min(lines.length, 30); i++) {
+        if (lines[i].includes('신청 경로') || lines[i].includes('알리바바닷컴 MID')) {
+          headerEnd = i;
+        }
+      }
+      if (headerEnd < 0) return csvText;
+
+      const headerFields = [];
+      for (let i = 0; i <= headerEnd; i++) {
+        const parsed = Papa.parse(lines[i], { header: false, quoteChar: '"', escapeChar: '"', skipEmptyLines: true });
+        if (parsed.data && parsed.data[0]) {
+          headerFields.push(...parsed.data[0]);
+        }
+      }
+
+      const dataLines = lines.slice(headerEnd + 1);
+      return [headerFields.join(','), ...dataLines].join('\n');
+    }
+
+    function parseCsv(csvText) {
+      const cleanCsv = preprocessCsv(csvText);
+      const parsed = Papa.parse(cleanCsv, { header: true, skipEmptyLines: true });
+      const headers = parsed.meta.fields;
+      const pathIdx = findColumn(headers, PATH_KEYWORDS);
+      const nameIdx = findColumn(headers, NAME_KEYWORDS);
+      const companyIdx = findColumn(headers, COMPANY_KEYWORDS);
+      const statusIdx = findColumn(headers, STATUS_KEYWORDS);
+      const timeIdx = findColumn(headers, TIME_KEYWORDS);
+
+      return parsed.data.map(row => {
+        const cells = Object.values(row);
+        const path = pathIdx >= 0 ? cells[pathIdx] : '';
+        const teamId = classifyTeam(path);
+        const teamObj = teams.find(t => t.id === teamId);
+        return {
+          path: path,
+          name: nameIdx >= 0 ? cells[nameIdx] : '',
+          company: companyIdx >= 0 ? cells[companyIdx] : '',
+          status: statusIdx >= 0 ? cells[statusIdx] : '',
+          time: timeIdx >= 0 ? cells[timeIdx] : '',
+          team: teamId,
+          teamName: teamObj ? teamObj.name : ''
+        };
+      }).filter(r => r.path || r.name || r.company || r.status);
+    }
+
+    // 초기화
+    loadEmbeddedOrLocalCsv();
+  </script>
+</body>
+</html>
