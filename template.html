@@ -305,25 +305,13 @@
 
     function preprocessCsv(csvText) {
       // Google Forms 응답 시트의 CSV는 섹션 제목/설명 때문에 헤더가 여러 줄에 걸쳐 있음
-      const lines = csvText.split('\n');
-      let headerEnd = -1;
-      for (let i = 0; i < Math.min(lines.length, 30); i++) {
-        if (lines[i].includes('신청 경로') || lines[i].includes('알리바바닷컴 MID')) {
-          headerEnd = i;
-        }
-      }
-      if (headerEnd < 0) return csvText;
-
-      const headerFields = [];
-      for (let i = 0; i <= headerEnd; i++) {
-        const parsed = Papa.parse(lines[i], { header: false, quoteChar: '"', escapeChar: '"', skipEmptyLines: true });
-        if (parsed.data && parsed.data[0]) {
-          headerFields.push(...parsed.data[0]);
-        }
-      }
-
-      const dataLines = lines.slice(headerEnd + 1);
-      return [headerFields.join(','), ...dataLines].join('\n');
+      // PapaParse가 큰따옴표 안의 개행을 자동으로 처리하도록 한 번 파싱한 뒤
+      // 하나의 헤더 행으로 재조합한다.
+      const parsed = Papa.parse(csvText, { header: false, quoteChar: '"', escapeChar: '"', skipEmptyLines: true });
+      if (!parsed.data || parsed.data.length < 2) return csvText;
+      const fields = parsed.data[0];
+      const data = parsed.data.slice(1);
+      return Papa.unparse({ fields, data });
     }
 
     function parseCsv(csvText) {
