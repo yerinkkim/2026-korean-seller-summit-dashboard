@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const XLSX = require('xlsx');
+const Papa = require('papaparse');
 
 const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/1EetrtA3l3e-TrUtuNa8JSjMPLVUYAyeq45jvy-zwe_E/export?format=csv&gid=2098392696';
 const TEMPLATE_PATH = path.join(__dirname, 'template.html');
@@ -41,6 +42,37 @@ function readLinksFromExcel() {
     links.push({ group, name, url });
   }
   return links;
+}
+
+function mergeCsvResponses(baseCsv, extraCsv) {
+  const base = Papa.parse(baseCsv, { header: true, skipEmptyLines: true });
+  const extra = Papa.parse(extraCsv, { header: true, skipEmptyLines: true });
+
+  const headers = base.meta.fields;
+  const seen = new Set();
+  const rows = [];
+
+  const keyFor = (row) => {
+    const email = String(row['이메일 (Email)'] || '').trim().toLowerCase();
+    const phone = String(row["연락처 (핸드폰 번호) (Contact Information)\n※ '-' 없이 숫자만 작성해 주세요."] || '').trim();
+    const name = String(row['참가자 성함 (Name)'] || '').trim();
+    return email || `${name}|${phone}`;
+  };
+
+  for (const row of base.data) {
+    const k = keyFor(row);
+    if (!k || seen.has(k)) continue;
+    seen.add(k);
+    rows.push(row);
+  }
+  for (const row of extra.data) {
+    const k = keyFor(row);
+    if (!k || seen.has(k)) continue;
+    seen.add(k);
+    rows.push(row);
+  }
+
+  return Papa.unparse({ fields: headers, data: rows });
 }
 
 function generateLinksHtml(links) {
@@ -86,11 +118,20 @@ async function main() {
   if (!response.ok) {
     throw new Error(`CSV 다운로드 실패: ${response.status} ${response.statusText}`);
   }
-  const csvText = await response.text();
+  let csvText = await response.text();
   if (!csvText || csvText.length < 10) {
     throw new Error('CSV 내용이 비어 있습니다.');
   }
   console.log(`CSV ${csvText.length}바이트 다운로드 완료`);
+
+  // 로컬 병합 CSV가 있으면 Google Sheets 데이터와 합친다.
+  const MERGED_CSV_PATH = path.join(__dirname, 'merged_responses.csv');
+  if (fs.existsSync(MERGED_CSV_PATH)) {
+    console.log('로컬 병합 CSV를 찾았습니다. Google Sheets 데이터와 합칩니다.');
+    const mergedText = fs.readFileSync(MERGED_CSV_PATH, 'utf-8');
+    csvText = mergeCsvResponses(csvText, mergedText);
+    console.log(`병합 후 CSV ${csvText.length}바이트`);
+  }
 
   // CSV를 Base64로 인코딩 (UTF-8)
   const encodedCsv = Buffer.from(csvText, 'utf-8').toString('base64');
