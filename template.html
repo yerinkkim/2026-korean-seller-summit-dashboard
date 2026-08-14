@@ -53,15 +53,15 @@
         <table class="w-full text-sm">
           <thead class="bg-slate-100 text-slate-600 uppercase text-xs">
             <tr>
-              <th class="px-3 py-2 text-left">번호</th>
-              <th class="px-3 py-2 text-left">시간</th>
-              <th class="px-3 py-2 text-left">성함</th>
-              <th class="px-3 py-2 text-left">연락처</th>
-              <th class="px-3 py-2 text-left">이메일</th>
-              <th class="px-3 py-2 text-left">기업명</th>
-              <th class="px-3 py-2 text-left">입점 여부</th>
-              <th class="px-3 py-2 text-left">소속 팀</th>
-              <th class="px-3 py-2 text-left">신청 경로</th>
+              <th class="px-3 py-2 text-left cursor-pointer select-none hover:text-indigo-600" data-sort="idx" onclick="sortRecent('idx')">번호 <span class="sort-arrow text-slate-400">⇅</span></th>
+              <th class="px-3 py-2 text-left cursor-pointer select-none hover:text-indigo-600" data-sort="time" onclick="sortRecent('time')">시간 <span class="sort-arrow text-slate-400">⇅</span></th>
+              <th class="px-3 py-2 text-left cursor-pointer select-none hover:text-indigo-600" data-sort="name" onclick="sortRecent('name')">성함 <span class="sort-arrow text-slate-400">⇅</span></th>
+              <th class="px-3 py-2 text-left cursor-pointer select-none hover:text-indigo-600" data-sort="phone" onclick="sortRecent('phone')">연락처 <span class="sort-arrow text-slate-400">⇅</span></th>
+              <th class="px-3 py-2 text-left cursor-pointer select-none hover:text-indigo-600" data-sort="email" onclick="sortRecent('email')">이메일 <span class="sort-arrow text-slate-400">⇅</span></th>
+              <th class="px-3 py-2 text-left cursor-pointer select-none hover:text-indigo-600" data-sort="company" onclick="sortRecent('company')">기업명 <span class="sort-arrow text-slate-400">⇅</span></th>
+              <th class="px-3 py-2 text-left cursor-pointer select-none hover:text-indigo-600" data-sort="status" onclick="sortRecent('status')">입점 여부 <span class="sort-arrow text-slate-400">⇅</span></th>
+              <th class="px-3 py-2 text-left cursor-pointer select-none hover:text-indigo-600" data-sort="teamName" onclick="sortRecent('teamName')">소속 팀 <span class="sort-arrow text-slate-400">⇅</span></th>
+              <th class="px-3 py-2 text-left cursor-pointer select-none hover:text-indigo-600" data-sort="path" onclick="sortRecent('path')">신청 경로 <span class="sort-arrow text-slate-400">⇅</span></th>
             </tr>
           </thead>
           <tbody id="recent-body">
@@ -236,7 +236,7 @@
     }
 
     function updateDashboard(rows) {
-      currentRows = rows;
+      currentRows = rows.map((r, i) => { r.idx = i + 1; return r; });
       const stats = {};
       teams.forEach(t => stats[t.id] = { service: 0, prospect: 0, total: 0 });
 
@@ -304,26 +304,84 @@
       document.getElementById('kpi-rate').textContent = totalRate + '%';
       document.getElementById('kpi-updated').textContent = new Date().toLocaleString('ko-KR');
 
-      // 최근 신청자
-      const recentBody = document.getElementById('recent-body');
-      document.getElementById('recent-count').textContent = `(${rows.length}명)`;
-      if (rows.length === 0) {
-        recentBody.innerHTML = '<tr><td colspan="9" class="px-3 py-4 text-center text-slate-400">아직 신청 내역이 없습니다.</td></tr>';
+      // 전체 신청자 (정렬 가능 테이블)
+      renderRecentRows();
+    }
+
+    // 전체 신청자 열 정렬 상태 (기본: 최신 제출 순)
+    let sortState = { key: 'idx', dir: -1 };
+
+    const SORT_ACCESSORS = {
+      idx: r => r.idx,
+      time: r => r.idx, // 제출 순서 = 시간 순서
+      name: r => String(r.name || '').trim(),
+      phone: r => String(r.phone || '').replace(/\D/g, ''),
+      email: r => String(r.email || '').trim().toLowerCase(),
+      company: r => String(r.company || '').trim().toLowerCase(),
+      status: r => String(r.status || '').trim(),
+      teamName: r => String(r.teamName || '미분류'),
+      path: r => String(r.path || '').trim().toLowerCase()
+    };
+
+    function sortRecent(key) {
+      if (sortState.key === key) {
+        sortState.dir = -sortState.dir;
       } else {
-        recentBody.innerHTML = rows.slice().reverse().map((r, i) => `
-          <tr class="border-b">
-            <td class="px-3 py-2 text-center">${rows.length - i}</td>
-            <td class="px-3 py-2">${r.time || '-'}</td>
-            <td class="px-3 py-2">${r.name || '-'}</td>
-            <td class="px-3 py-2 whitespace-nowrap">${r.phone || '-'}</td>
-            <td class="px-3 py-2">${r.email || '-'}</td>
-            <td class="px-3 py-2">${r.company || '-'}</td>
-            <td class="px-3 py-2">${r.status || '-'}</td>
-            <td class="px-3 py-2"><span class="px-2 py-0.5 rounded-full text-xs ${r.team ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-500'}">${r.teamName || '미분류'}</span></td>
-            <td class="px-3 py-2">${r.path || '-'}</td>
-          </tr>
-        `).join('');
+        sortState = { key: key, dir: 1 };
       }
+      renderRecentRows();
+    }
+
+    function updateSortIndicators() {
+      document.querySelectorAll('th[data-sort]').forEach(th => {
+        const arrow = th.querySelector('.sort-arrow');
+        if (!arrow) return;
+        if (th.dataset.sort === sortState.key) {
+          arrow.textContent = sortState.dir === 1 ? '▲' : '▼';
+          arrow.classList.remove('text-slate-400');
+          arrow.classList.add('text-indigo-600');
+        } else {
+          arrow.textContent = '⇅';
+          arrow.classList.add('text-slate-400');
+          arrow.classList.remove('text-indigo-600');
+        }
+      });
+    }
+
+    function renderRecentRows() {
+      const recentBody = document.getElementById('recent-body');
+      document.getElementById('recent-count').textContent = `(${currentRows.length}명)`;
+      if (currentRows.length === 0) {
+        recentBody.innerHTML = '<tr><td colspan="9" class="px-3 py-4 text-center text-slate-400">아직 신청 내역이 없습니다.</td></tr>';
+        updateSortIndicators();
+        return;
+      }
+      const acc = SORT_ACCESSORS[sortState.key] || SORT_ACCESSORS.idx;
+      const sorted = currentRows.slice().sort((a, b) => {
+        const va = acc(a), vb = acc(b);
+        let cmp;
+        if (typeof va === 'number' && typeof vb === 'number') {
+          cmp = va - vb;
+        } else {
+          cmp = String(va).localeCompare(String(vb), 'ko', { numeric: true });
+        }
+        if (cmp === 0) cmp = a.idx - b.idx;
+        return cmp * sortState.dir;
+      });
+      recentBody.innerHTML = sorted.map(r => `
+        <tr class="border-b">
+          <td class="px-3 py-2 text-center">${r.idx}</td>
+          <td class="px-3 py-2">${r.time || '-'}</td>
+          <td class="px-3 py-2">${r.name || '-'}</td>
+          <td class="px-3 py-2 whitespace-nowrap">${r.phone || '-'}</td>
+          <td class="px-3 py-2">${r.email || '-'}</td>
+          <td class="px-3 py-2">${r.company || '-'}</td>
+          <td class="px-3 py-2">${r.status || '-'}</td>
+          <td class="px-3 py-2"><span class="px-2 py-0.5 rounded-full text-xs ${r.team ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-500'}">${r.teamName || '미분류'}</span></td>
+          <td class="px-3 py-2">${r.path || '-'}</td>
+        </tr>
+      `).join('');
+      updateSortIndicators();
     }
 
     function preprocessCsv(csvText) {
