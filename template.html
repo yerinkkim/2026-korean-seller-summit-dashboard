@@ -56,6 +56,8 @@
               <th class="px-3 py-2 text-left">번호</th>
               <th class="px-3 py-2 text-left">시간</th>
               <th class="px-3 py-2 text-left">성함</th>
+              <th class="px-3 py-2 text-left">연락처</th>
+              <th class="px-3 py-2 text-left">이메일</th>
               <th class="px-3 py-2 text-left">기업명</th>
               <th class="px-3 py-2 text-left">입점 여부</th>
               <th class="px-3 py-2 text-left">소속 팀</th>
@@ -63,7 +65,7 @@
             </tr>
           </thead>
           <tbody id="recent-body">
-            <tr><td colspan="6" class="px-3 py-4 text-center text-slate-400">아직 신청 내역이 없습니다.</td></tr>
+            <tr><td colspan="9" class="px-3 py-4 text-center text-slate-400">아직 신청 내역이 없습니다.</td></tr>
           </tbody>
         </table>
       </div>
@@ -170,6 +172,8 @@
       const data = currentRows.map(r => ({
         '제출 시간': r.time || '',
         '성함': r.name || '',
+        '연락처': r.phone || '',
+        '이메일': r.email || '',
         '기업명': r.company || '',
         '입점 여부': r.status || '',
         '신청 경로': r.path || '',
@@ -188,6 +192,8 @@
     const COMPANY_KEYWORDS = ['기업명', 'Company Name', '회사'];
     const STATUS_KEYWORDS = ['입점 여부', '입점', 'status'];
     const TIME_KEYWORDS = ['타임스탬프', 'Timestamp', '제출 시간', '시간'];
+    const PHONE_KEYWORDS = ['핸드폰', '전화번호', 'Contact Information', 'phone'];
+    const EMAIL_KEYWORDS = ['이메일 (Email', '메일 주소', 'Email)'];
 
     function findColumn(headers, keywords) {
       for (const kw of keywords) {
@@ -195,6 +201,19 @@
         if (idx >= 0) return idx;
       }
       return -1;
+    }
+
+    function formatPhone(value) {
+      const raw = String(value || '').trim();
+      if (!raw) return '';
+      const digits = raw.replace(/\D/g, '');
+      if (!digits) return raw;
+      let d = digits;
+      // 구글 시트 숫자 셀에서 앞자리 0이 사라진 경우 복원 (예: 1029083604 -> 01029083604)
+      if (d.startsWith('10') && (d.length === 9 || d.length === 10)) d = '0' + d;
+      if (d.length === 11) return d.slice(0, 3) + '-' + d.slice(3, 7) + '-' + d.slice(7);
+      if (d.length === 10) return d.slice(0, 3) + '-' + d.slice(3, 6) + '-' + d.slice(6);
+      return d;
     }
 
     function classifyTeam(pathValue) {
@@ -289,13 +308,15 @@
       const recentBody = document.getElementById('recent-body');
       document.getElementById('recent-count').textContent = `(${rows.length}명)`;
       if (rows.length === 0) {
-        recentBody.innerHTML = '<tr><td colspan="7" class="px-3 py-4 text-center text-slate-400">아직 신청 내역이 없습니다.</td></tr>';
+        recentBody.innerHTML = '<tr><td colspan="9" class="px-3 py-4 text-center text-slate-400">아직 신청 내역이 없습니다.</td></tr>';
       } else {
         recentBody.innerHTML = rows.slice().reverse().map((r, i) => `
           <tr class="border-b">
             <td class="px-3 py-2 text-center">${rows.length - i}</td>
             <td class="px-3 py-2">${r.time || '-'}</td>
             <td class="px-3 py-2">${r.name || '-'}</td>
+            <td class="px-3 py-2 whitespace-nowrap">${r.phone || '-'}</td>
+            <td class="px-3 py-2">${r.email || '-'}</td>
             <td class="px-3 py-2">${r.company || '-'}</td>
             <td class="px-3 py-2">${r.status || '-'}</td>
             <td class="px-3 py-2"><span class="px-2 py-0.5 rounded-full text-xs ${r.team ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-500'}">${r.teamName || '미분류'}</span></td>
@@ -325,6 +346,8 @@
       const companyIdx = findColumn(headers, COMPANY_KEYWORDS);
       const statusIdx = findColumn(headers, STATUS_KEYWORDS);
       const timeIdx = findColumn(headers, TIME_KEYWORDS);
+      const phoneIdx = findColumn(headers, PHONE_KEYWORDS);
+      const emailIdx = findColumn(headers, EMAIL_KEYWORDS);
 
       return parsed.data.map(row => {
         const cells = Object.values(row);
@@ -337,6 +360,8 @@
           company: companyIdx >= 0 ? cells[companyIdx] : '',
           status: statusIdx >= 0 ? cells[statusIdx] : '',
           time: timeIdx >= 0 ? cells[timeIdx] : '',
+          phone: phoneIdx >= 0 ? formatPhone(cells[phoneIdx]) : '',
+          email: emailIdx >= 0 ? String(cells[emailIdx] || '').trim() : '',
           team: teamId,
           teamName: teamObj ? teamObj.name : ''
         };
