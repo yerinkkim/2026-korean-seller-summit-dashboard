@@ -311,9 +311,23 @@
     // 전체 신청자 열 정렬 상태 (기본: 최신 제출 순)
     let sortState = { key: 'idx', dir: -1 };
 
+    // "2026. 7. 20 오전 11:06:41" 같은 구글폼 타임스탬프를 epoch ms로 변환
+    function parseTimeValue(s) {
+      const str = String(s || '').trim();
+      if (!str) return 0;
+      const m = str.match(/(\d{4})[.\-\/]\s*(\d{1,2})[.\-\/]\s*(\d{1,2})/);
+      if (!m) return 0;
+      let hour = 0, min = 0, sec = 0;
+      const t = str.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+      if (t) { hour = +t[1]; min = +t[2]; sec = +(t[3] || 0); }
+      if (/오후|PM/i.test(str) && hour < 12) hour += 12;
+      if (/오전|AM/i.test(str) && hour === 12) hour = 0;
+      return new Date(+m[1], +m[2] - 1, +m[3], hour, min, sec).getTime();
+    }
+
     const SORT_ACCESSORS = {
       idx: r => r.idx,
-      time: r => r.idx, // 제출 순서 = 시간 순서
+      time: r => parseTimeValue(r.time), // 실제 타임스탬프 기준 (시트 행 순서와 다를 수 있음)
       name: r => String(r.name || '').trim(),
       phone: r => String(r.phone || '').replace(/\D/g, ''),
       email: r => String(r.email || '').trim().toLowerCase(),
