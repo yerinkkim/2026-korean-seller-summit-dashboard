@@ -114,7 +114,8 @@
       { id: 'busan1', name: 'Busan Team 1', serviceTarget: 6, prospectTarget: 35, totalTarget: 41, serviceBase: 53 },
       { id: 'channel', name: 'Channel', serviceTarget: 32, prospectTarget: 55, totalTarget: 87, serviceBase: 178 },
       { id: 'operations', name: '운영팀', serviceTarget: 0, prospectTarget: 0, totalTarget: 0, serviceBase: 0 },
-      { id: 'marketing', name: '마케팅', serviceTarget: 0, prospectTarget: 0, totalTarget: 0, serviceBase: 0 }
+      { id: 'marketing', name: '마케팅', serviceTarget: 0, prospectTarget: 0, totalTarget: 0, serviceBase: 0 },
+      { id: 'others', name: '기타', serviceTarget: 0, prospectTarget: 0, totalTarget: 0, serviceBase: 0 }
     ];
 
     // 기본 팀 매핑 (신청 경로 값을 팀 ID로 연결)
@@ -126,7 +127,8 @@
       busan1: ['Busan Team 1', 'busan1', 'Busan1', '부산1팀', 'BT1', '부산', '고호동', '김민도', '손순영', '이창제', '정태식', '한민주'],
       channel: ['Channel', 'channel', '채널', 'CH', '채널팀', 'KYP', 'GABIA', 'EINS MEDIA', 'PROGRESS-MEDIA', '채널_Korea Yellow Pages Ltd', '채널_GABIA CNS', '채널_EINS MEDIA', '채널_PROGRESS-MEDIA', 'Korea Yellow Pages'],
       operations: ['운영팀', '운영'],
-      marketing: ['Marketing', '마케팅', '메일', '이메일']
+      marketing: ['Marketing', '마케팅', '메일', '이메일', 'e mail', 'SNS', 'Sns', '인스타', '인스타그램', 'Instagram', 'Insta', '페이스북', '페북', 'Facebook', '유튜브', 'YouTube'],
+      others: []
     };
 
     // 현재 집계 상태
@@ -223,7 +225,7 @@
           if (val.includes(String(alias).toLowerCase())) return teamId;
         }
       }
-      return null;
+      return 'others';
     }
 
     function classifyStatus(statusValue) {
@@ -242,7 +244,6 @@
 
       rows.forEach(r => {
         const teamId = classifyTeam(r.path);
-        if (!teamId) return;
         const type = classifyStatus(r.status);
         stats[teamId][type]++;
         stats[teamId].total++;
